@@ -99,7 +99,7 @@ function connectWebSocket() {
 
     if (audioEl) {
         audioEl.src = '/audio?' + Date.now();
-        audioEl.volume = volumeSlider ? volumeSlider.value : 0.8;
+        audioEl.volume = volumeSlider ? volumeSlider.value : 1.0;
     }
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -121,8 +121,18 @@ function connectWebSocket() {
                 frameInterval = 1000 / targetFps;
                 renderMode = parseInt(p[2]);
                 buildCanvas(parseInt(p[3]), parseInt(p[4]));
-                
-                if (audioEl) audioEl.play().catch(() => {});
+
+                // Reload audio on every INIT so each video's audio plays correctly.
+                // The server updates current_index BEFORE sending INIT, so /audio
+                // will already serve the new video's audio when we request it here.
+                if (audioEl) {
+                    audioEl.pause();
+                    audioEl.src = '/audio?' + Date.now();
+                    audioEl.volume = volumeSlider ? volumeSlider.value : 1.0;
+                    audioEl.load();
+                    audioEl.play().catch(() => {});
+                }
+
                 readyToRender = true;
                 state = 'PLAYING';
                 lastRenderTime = performance.now();

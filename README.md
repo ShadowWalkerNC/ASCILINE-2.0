@@ -46,10 +46,27 @@ pip install fastapi uvicorn opencv-python numpy websockets
 ```
 
 ### 3. Run the Web Server
-Place a `video.mp4` in the root directory and start the server:
+
+**Single video:**
 ```bash
-python stream_server.py
+python stream_server.py video.mp4
 ```
+
+**Folder mode — drop your videos into `videos/` and run:**
+```bash
+python stream_server.py --folder videos
+python stream_server.py --folder videos --loop          # infinite loop
+python stream_server.py --folder videos --mode 5 --vol 2  # all videos same settings
+```
+Videos play in **filesystem order** (top to bottom as they appear in the folder, not alphabetically). Just add/remove files from the `videos/` folder to control the queue.
+
+**JSON Playlist — full control per video:**
+```bash
+python stream_server.py --playlist playlist.json
+python stream_server.py --playlist playlist.json --loop
+```
+Use `playlist.json` when you need different `--mode` or `--vol` settings for each video.
+
 Open `http://localhost:8000` in your browser.
 
 ### 4. Run directly in Terminal (Standalone)
@@ -82,6 +99,33 @@ The engine supports different fidelity levels via the `--mode` flag:
 ```bash
 python stream_server.py --mode 5 --cols 240 --rows 100
 ```
+
+### Server-Side Volume Control
+Volume is controlled at the server level via the `--vol` flag (scale 0–5).
+When set to `0`, the audio engine (FFmpeg) **never runs**, saving CPU and bandwidth.
+
+| `--vol` | FFmpeg Multiplier | Description |
+|---------|------------------|-------------|
+| `0`     | —                | Muted (no processing) |
+| `1`     | 1.0×             | Normal (default) |
+| `3`     | 1.5×             | Loud |
+| `5`     | 2.0×             | Double volume |
+
+```bash
+python stream_server.py video.mp4 --vol 0   # Silent
+python stream_server.py video.mp4 --vol 3   # Loud
+```
+
+### Playlist Format (`playlist.json`)
+Each entry can override the global `--mode` and `--vol` defaults:
+```json
+[
+    { "video": "intro.mp4",  "mode": 1, "vol": 1 },
+    { "video": "main.mp4",   "mode": 5, "vol": 3 },
+    { "video": "outro.mp4",  "mode": 3, "vol": 2 }
+]
+```
+Video paths are resolved automatically — the engine checks the project root and the `videos/` subfolder, so you can write just the filename.
 
 ## 📜 License & Ethical Guardrails
 
