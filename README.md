@@ -20,7 +20,8 @@
 
 ## 🚀 Technical Features
 
--   **Real-Time Streaming**: Low-latency video-to-ASCII conversion.
+-   **Real-Time ASCII Streaming**: Low-latency video-to-ASCII conversion.
+-   **Real-Time pixel Streaming**: Close visual quality to 360p video streaming it uses ▮ characthers.
 -   **High Performance**: Uses **HTML5 Canvas** for rendering instead of heavy DOM elements, enabling 60 FPS playback.
 -   **Binary Protocol**: Frames are encoded into `Uint8Array` (binary) for efficient bandwidth usage.
 -   **Multiple Color Modes**: Supports everything from classic B&W to 16M color ultra-fidelity.
