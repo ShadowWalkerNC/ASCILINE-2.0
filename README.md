@@ -44,7 +44,19 @@ cd ASCILINE
 ```bash
 pip install fastapi uvicorn opencv-python numpy websockets
 ```
+### 🔈 Audio Support (FFmpeg Required)
+To enable server-side audio processing (Volume 1-5), you must have FFmpeg installed.
 
+**Option 1: Package Manager (Recommended)**
+- **Windows:** `winget install ffmpeg`
+- **macOS:** `brew install ffmpeg`
+- **Linux:** `sudo apt install ffmpeg`
+
+**Option 2: Manual Installation (Windows)**
+If you get a `FileNotFoundError` or don't want to modify system variables:
+1. Download [FFmpeg ZIP](https://github.com/BtbN/FFmpeg-Builds/releases/latest).
+2. Extract `ffmpeg.exe` from the `bin` folder.
+3. Drop it directly into your `ASCILINE` project folder alongside `stream_server.py`.
 ### 3. Run the Web Server
 
 **Single video:**
