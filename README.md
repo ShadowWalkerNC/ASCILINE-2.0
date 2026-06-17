@@ -13,7 +13,8 @@
 1. **Pure Typographic Manipulation**: The visual stream is not a standard media file—it's raw HTML/Canvas text. This makes the impossible possible: you can apply real-time CSS filters (neon glows, text shadows, animations) to video content.
 2. **Local AI & LLM Ready**: By reducing complex pixel streams into structured logical strings, ASCILINE acts as a perfect bridge for AI. Instead of feeding heavy computer vision models, lightweight LLMs can process semantic video summaries.
 3. **Ultra-Low Bandwidth & Zero GPU (valid for ASCII MOD)**: Standard codecs (H.264/VP9) require dedicated hardware decoders, choking microcontrollers and weak devices. ASCILINE offloads the heavy lifting to the backend, streaming only lightweight text frames. By scaling down the output quality (using fewer columns), extremely low bandwidth requirements can be achieved. This means you can play fluid, real-time video on devices with constrained networks and zero GPU capabilities (smart appliances, retro terminals, basic microcontrollers).
-4. **Bypassing Browser Constraints**: Modern browsers aggressively throttle autoplay videos, and ad-blockers restrict traditional media frames. To the browser, ASCILINE is simply "JavaScript updating a canvas"—completely invisible to media restrictions.
+4. **🌐 Works Everywhere**: No `<video>`  tags. No browser-side decoding. 
+No autoplay restrictions. To the browser, it's just text on a canvas.
 
 ## 🚀 Technical Features
 
