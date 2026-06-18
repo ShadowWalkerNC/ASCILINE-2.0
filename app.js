@@ -20,6 +20,16 @@ const seekBar = document.getElementById('seek-slider');
 const timeCurrent = document.getElementById('time-current');
 const timeTotal = document.getElementById('time-total');
 
+// Added controls: skip buttons, played fill, and the hover scrub preview
+const btnBack = document.getElementById('btn-back');
+const btnFwd = document.getElementById('btn-fwd');
+const seekPlayed = document.getElementById('seek-played');
+const seekWrap = document.querySelector('.seek-wrap');
+const seekPreview = document.getElementById('seek-preview');
+const seekPreviewImg = document.getElementById('seek-preview-img');
+const seekPreviewTime = document.getElementById('seek-preview-time');
+let scrubMeta = null; // hover sprite layout from /scrub
+
 function formatTime(seconds) {
     if (isNaN(seconds) || seconds < 0) return "00:00";
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -193,8 +203,10 @@ function connectWebSocket() {
                 }
                 if (timeTotal) timeTotal.textContent = formatTime(duration);
                 if (timeCurrent) timeCurrent.textContent = "00:00";
-                
+                if (seekPlayed) seekPlayed.style.width = '0%';
+
                 audioOffset = 0;
+                setupScrub(currentQueueIdx);   // load hover thumbnails for this video
                 
                 buildCanvas(parseInt(p[3]), parseInt(p[4]));
 
@@ -308,6 +320,7 @@ function renderFrame(now) {
     if (!isSeeking && seekBar) {
         if (now - lastUiUpdateTime >= 100) {
             seekBar.value = masterClock;
+            if (seekPlayed && duration) seekPlayed.style.width = Math.min(100, (masterClock / duration) * 100) + '%';
             lastUiUpdateTime = now;
         }
         const formattedTime = formatTime(masterClock);
@@ -477,60 +490,108 @@ if (playPauseBtn) {
     });
 }
 
+// Seek to an absolute time. Reuses the live seek (tell the server, then reload
+// the audio from that point). Shared by the slider and the skip buttons.
+function doSeek(targetSec) {
+    if (duration) targetSec = Math.max(0, Math.min(targetSec, duration));
+    if (seekBar) seekBar.value = targetSec;
+    if (seekPlayed && duration) seekPlayed.style.width = Math.min(100, (targetSec / duration) * 100) + '%';
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'seek', time: targetSec }));
+    }
+
+    // Drop stale frames, then restart audio from the seek point
+    frameBuffer.length = 0;
+    audioOffset = targetSec;
+
+    if (audioEl) {
+        audioEl.pause();
+        audioEl.src = `/audio?v=${currentQueueIdx}&start=${targetSec}&t=${Date.now()}`;
+        audioEl.load();
+
+        if (state === 'PLAYING') {
+            readyToRender = false;
+            audioEl.play().catch(() => {});
+            const onAudioStart = () => {
+                if (!readyToRender) {
+                    readyToRender = true;
+                    streamStartTime = performance.now() - (targetSec * 1000.0);
+                    lastRenderTime = performance.now();
+                    lastFpsUpdate = performance.now();
+                    frameCount = 0;
+                    requestAnimationFrame(renderFrame);
+                }
+            };
+            if (audioEl.readyState >= 3) onAudioStart();
+            else {
+                audioEl.addEventListener('playing', onAudioStart, { once: true });
+                setTimeout(onAudioStart, 500);
+            }
+        } else {
+            streamStartTime = performance.now() - (targetSec * 1000.0);
+        }
+    } else {
+        streamStartTime = performance.now() - (targetSec * 1000.0);
+    }
+}
+
+function getMasterClock() {
+    if (audioEl && audioEl.readyState >= 1 && !audioEl.paused) return audioEl.currentTime + audioOffset;
+    return (performance.now() - streamStartTime) / 1000.0;
+}
+
+function skip(delta) {
+    if (state !== 'PLAYING' && state !== 'PAUSED') return;
+    if (!duration) return;
+    doSeek(getMasterClock() + delta);
+}
+
+// Pull the hover thumbnail sprite for this video (built lazily by the server).
+function setupScrub(v) {
+    scrubMeta = null;
+    if (seekPreviewImg) seekPreviewImg.style.backgroundImage = '';
+    fetch('/scrub?v=' + (v || 0)).then(r => r.json()).then(m => {
+        if (!m || !m.available || !seekPreviewImg) return;
+        scrubMeta = m;
+        seekPreviewImg.style.width = m.cellW + 'px';
+        seekPreviewImg.style.height = m.cellH + 'px';
+        seekPreviewImg.style.backgroundImage = `url(${m.sprite})`;
+        seekPreviewImg.style.backgroundSize = (m.gridCols * m.cellW) + 'px ' + (m.gridRows * m.cellH) + 'px';
+    }).catch(() => {});
+}
+
+function onSeekHover(e) {
+    if (!scrubMeta || !duration || !seekWrap) return;
+    const rect = seekWrap.getBoundingClientRect();
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const time = (x / rect.width) * duration;
+    const idx = Math.max(0, Math.min(Math.floor(time / scrubMeta.interval), scrubMeta.count - 1));
+    const col = idx % scrubMeta.gridCols, row = Math.floor(idx / scrubMeta.gridCols);
+    seekPreviewImg.style.backgroundPosition = `-${col * scrubMeta.cellW}px -${row * scrubMeta.cellH}px`;
+    seekPreviewTime.textContent = formatTime(time);
+    const half = scrubMeta.cellW / 2;
+    seekPreview.style.left = Math.max(half, Math.min(x, rect.width - half)) + 'px';
+    seekPreview.classList.add('show');
+}
+
 if (seekBar) {
     seekBar.addEventListener('input', () => {
         isSeeking = true;
         if (timeCurrent) timeCurrent.textContent = formatTime(seekBar.value);
     });
-    
     seekBar.addEventListener('change', () => {
-        const targetSec = parseFloat(seekBar.value);
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'seek', time: targetSec }));
-        }
-        
-        // Clear buffer so we don't render stale frames
-        frameBuffer.length = 0;
-        audioOffset = targetSec;
-        
-        // Reload audio with correct start offset
-        if (audioEl) {
-            audioEl.pause();
-            const qs = `?v=${currentQueueIdx}&start=${targetSec}&`;
-            audioEl.src = `/audio${qs}t=${Date.now()}`;
-            audioEl.load();
-            
-            if (state === 'PLAYING') {
-                readyToRender = false;
-                audioEl.play().catch(() => {});
-                
-                const onAudioStart = () => {
-                    if (!readyToRender) {
-                        readyToRender = true;
-                        streamStartTime = performance.now() - (targetSec * 1000.0);
-                        lastRenderTime = performance.now();
-                        lastFpsUpdate = performance.now();
-                        frameCount = 0;
-                        requestAnimationFrame(renderFrame);
-                    }
-                };
-                
-                if (audioEl.readyState >= 3) {
-                    onAudioStart();
-                } else {
-                    audioEl.addEventListener('playing', onAudioStart, { once: true });
-                    // Fallback in case audio is muted or fails to play
-                    setTimeout(onAudioStart, 500);
-                }
-            } else {
-                streamStartTime = performance.now() - (targetSec * 1000.0);
-            }
-        } else {
-            streamStartTime = performance.now() - (targetSec * 1000.0);
-        }
-        
+        doSeek(parseFloat(seekBar.value));
         isSeeking = false;
     });
+}
+
+if (btnBack) btnBack.addEventListener('click', (e) => { e.stopPropagation(); skip(-10); });
+if (btnFwd)  btnFwd.addEventListener('click', (e) => { e.stopPropagation(); skip(10); });
+
+if (seekWrap) {
+    seekWrap.addEventListener('mousemove', onSeekHover);
+    seekWrap.addEventListener('mouseleave', () => { if (seekPreview) seekPreview.classList.remove('show'); });
 }
 
 // ── EVENT LISTENERS ──

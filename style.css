@@ -115,8 +115,9 @@ body {
     position: relative;
     background: var(--player-bg);
     border-radius: 4px;
-    width: 860px;
-    height: 560px;
+    width: 100%;
+    max-width: 860px;
+    aspect-ratio: 860 / 560;   /* scales with width, keeps shape */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -207,7 +208,8 @@ body {
 .player-controls {
     display: flex;
     align-items: center;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
     margin-top: 10px;
     padding: 8px 12px;
     background: #1a1a1a;
@@ -222,7 +224,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1;
+    flex-shrink: 0;
 }
 
 .ctrl-icon {
@@ -231,18 +233,133 @@ body {
     flex-shrink: 0;
 }
 
-/* Styled range slider */
+/* Buttons (play / pause / skip) */
+.ctrl-btn {
+    background: #050505;
+    color: var(--accent-color);
+    border: 1px solid #333;
+    border-radius: 4px;
+    font-family: var(--font-tech);
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 34px;
+    height: 28px;
+    padding: 0 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s;
+}
+.ctrl-btn:hover { border-color: var(--accent-color); }
+.ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: #333; }
+
+/* Time readouts */
+.ctrl-time {
+    font-family: var(--font-tech);
+    font-size: 11px;
+    color: #aaa;
+    flex-shrink: 0;
+    white-space: nowrap;
+    min-width: 42px;
+    text-align: center;
+}
+
+/* Seek bar (track + played fill + transparent slider on top) */
+.seek-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 80px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+}
+.seek-track {
+    position: absolute;
+    left: 0; right: 0;
+    height: 4px;
+    background: #444;
+    border-radius: 2px;
+    pointer-events: none;
+}
+.seek-played {
+    position: absolute;
+    left: 0;
+    height: 4px;
+    width: 0;
+    background: var(--accent-color);
+    border-radius: 2px;
+    pointer-events: none;
+}
+.seek-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    width: 100%;
+    height: 14px;
+    background: transparent;
+    outline: none;
+    cursor: pointer;
+    margin: 0;
+}
+.seek-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+.seek-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+
+/* Hover scrub-preview thumbnail */
+.seek-preview {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    transform: translateX(-50%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    z-index: 60;
+}
+.seek-preview.show { display: flex; }
+.seek-preview-img {
+    background-repeat: no-repeat;
+    border: 1px solid var(--accent-color);
+    border-radius: 3px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+.seek-preview-time {
+    margin-top: 4px;
+    font-family: var(--font-tech);
+    font-size: 10px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 1px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+/* Volume */
 #volume-slider {
     -webkit-appearance: none;
     appearance: none;
-    flex: 1;
+    width: 80px;
+    flex-shrink: 0;
     height: 4px;
     background: #444;
     border-radius: 2px;
     outline: none;
     cursor: pointer;
 }
-
 #volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -252,7 +369,6 @@ body {
     border-radius: 50%;
     cursor: pointer;
 }
-
 #volume-slider::-moz-range-thumb {
     width: 14px;
     height: 14px;
@@ -282,4 +398,26 @@ body {
 
 #player-container.paused #ascii-player {
     pointer-events: none;
+}
+
+/* ── RESPONSIVE ─────────────────────────── */
+@media (max-width: 920px) {
+    .blog-container { margin: 30px auto; }
+    .blog-post { padding: 24px; }
+    .blog-header { padding: 50px 16px; }
+    .blog-header h1 { font-size: 32px; }
+}
+
+@media (max-width: 560px) {
+    .blog-post { padding: 16px; }
+    .blog-header { padding: 36px 12px; }
+    .blog-header h1 { font-size: 26px; letter-spacing: 2px; }
+    .post-title { font-size: 19px; }
+    .post-content { font-size: 15px; }
+
+    .player-controls { gap: 8px; padding: 8px; }
+    .ctrl-btn { min-width: 30px; height: 26px; padding: 0 6px; font-size: 11px; }
+    .ctrl-time { min-width: 0; font-size: 10px; }
+    .seek-wrap { order: 5; flex-basis: 100%; }   /* seek bar gets its own row */
+    #volume-slider { width: 64px; }
 }
