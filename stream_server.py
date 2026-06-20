@@ -16,6 +16,8 @@ Media API endpoints (called by Sigil gui-server.js /api/media/* proxy):
   POST /api/seek      { time }
   POST /api/volume    { vol }
   POST /api/loop      { enabled }
+  POST /api/mode      { mode }   — change render mode on the fly
+  POST /api/cols      { cols }   — change terminal width on the fly
   GET  /api/status
   GET  /api/queue
 """
@@ -96,7 +98,7 @@ def resolve_video_source(video: str) -> str:
 
 # ─────────────────────────────────────────────────────────
 # MEDIA API CONTROL ENDPOINTS
-# Called by Sigil’s gui-server.js /api/media/* proxy.
+# Called by Sigil's gui-server.js /api/media/* proxy.
 # ─────────────────────────────────────────────────────────
 
 class EnqueueBody(BaseModel):
@@ -115,6 +117,12 @@ class VolumeBody(BaseModel):
 
 class LoopBody(BaseModel):
     enabled: bool
+
+class ModeBody(BaseModel):
+    mode: int
+
+class ColsBody(BaseModel):
+    cols: int
 
 
 @app.post("/api/enqueue")
@@ -189,6 +197,32 @@ async def api_loop(body: LoopBody):
     """Toggle infinite loop mode."""
     app.state.loop = body.enabled
     return JSONResponse({"ok": True, "loop": body.enabled})
+
+
+@app.post("/api/mode")
+async def api_mode(body: ModeBody):
+    """Change the ASCII render mode (1-5) on the fly for the current video."""
+    mode = max(1, min(5, body.mode))
+    queue = getattr(app.state, "queue", [])
+    idx   = getattr(app.state, "current_index", 0)
+    if queue and idx < len(queue):
+        queue[idx]["mode"] = mode
+    app.state._mode_override = mode
+    print(f"[API] Mode changed → {mode}")
+    return JSONResponse({"ok": True, "mode": mode})
+
+
+@app.post("/api/cols")
+async def api_cols(body: ColsBody):
+    """Change terminal column width (40-500) on the fly for the current video."""
+    cols = max(40, min(500, body.cols))
+    queue = getattr(app.state, "queue", [])
+    idx   = getattr(app.state, "current_index", 0)
+    if queue and idx < len(queue):
+        queue[idx]["cols"] = cols
+    app.state._cols_override = cols
+    print(f"[API] Cols changed → {cols}")
+    return JSONResponse({"ok": True, "cols": cols})
 
 
 @app.get("/api/status")
@@ -351,6 +385,8 @@ def build_queue(args) -> list[dict]:
 # loop flag controls infinite playback.
 # _skip_requested: set True by /api/skip and /api/stop to break WS loop.
 # _seek_target: set by /api/seek; polled each frame by WS loop.
+# _mode_override: set by /api/mode; applied on next frame render.
+# _cols_override: set by /api/cols; applied on next video segment.
 # ────────────────────────────────────────────────────────
 
 @app.get("/")
@@ -846,20 +882,20 @@ def print_status():
     loop  = getattr(app.state, "loop", False)
     cols  = getattr(app.state, "cols", 0)
     rows  = getattr(app.state, "rows", 0)
-    print(f"\n\033[1;37m{'\u2550'*55}\033[0m")
-    print(f" \033[32m\u25ba\033[0m \033[1mQueue\033[0m      : {len(queue)} video(s)")
-    print(f" \033[32m\u25ba\033[0m \033[1mNow Playing\033[0m: {idx + 1}/{len(queue)}")
+    print(f"\n\033[1;37m{'═'*55}\033[0m")
+    print(f" \033[32m►\033[0m \033[1mQueue\033[0m      : {len(queue)} video(s)")
+    print(f" \033[32m►\033[0m \033[1mNow Playing\033[0m: {idx + 1}/{len(queue)}")
     if queue and idx < len(queue):
         entry = queue[idx]
         px = ' \033[35m[PIXEL]\033[0m' if entry.get('pixel') else ''
         cols = entry.get('cols', cols)
         rows = entry.get('rows', rows)
-        print(f" \033[32m\u25ba\033[0m \033[1mVideo\033[0m      : \033[36m{entry['video'][:80]}\033[0m")
-        print(f" \033[32m\u25ba\033[0m \033[1mSettings\033[0m   : mode={entry['mode']}{px} vol={entry['vol']}")
+        print(f" \033[32m►\033[0m \033[1mVideo\033[0m      : \033[36m{entry['video'][:80]}\033[0m")
+        print(f" \033[32m►\033[0m \033[1mSettings\033[0m   : mode={entry['mode']}{px} vol={entry['vol']}")
     res_str = f"{cols}x{rows}" if rows > 0 else f"{cols}x(auto)"
-    print(f" \033[32m\u25ba\033[0m \033[1mResolution\033[0m : {res_str}")
-    print(f" \033[32m\u25ba\033[0m \033[1mLoop\033[0m       : {'ON' if loop else 'OFF'}")
-    print(f"\033[1;37m{'\u2550'*55}\033[0m\n")
+    print(f" \033[32m►\033[0m \033[1mResolution\033[0m : {res_str}")
+    print(f" \033[32m►\033[0m \033[1mLoop\033[0m       : {'ON' if loop else 'OFF'}")
+    print(f"\033[1;37m{'═'*55}\033[0m\n")
 
 
 def command_loop():
@@ -872,12 +908,12 @@ def command_loop():
             elif cmd in ('/status', 'status'):
                 print_status()
             elif cmd in ('/quit', 'quit', 'exit'):
-                print("\n \033[33m\u23f9  Shutting down ASCILINE...\033[0m\n")
+                print("\n \033[33m⏹  Shutting down ASCILINE...\033[0m\n")
                 os._exit(0)
             elif cmd:
                 print(f" \033[90mUnknown command: '{cmd}'. Type \033[36m/help\033[90m for options.\033[0m")
         except (EOFError, KeyboardInterrupt):
-            print("\n \033[33m\u23f9  Shutting down ASCILINE...\033[0m\n")
+            print("\n \033[33m⏹  Shutting down ASCILINE...\033[0m\n")
             os._exit(0)
 
 
@@ -939,6 +975,8 @@ if __name__ == "__main__":
     app.state._skip_requested= False
     app.state._seek_target   = None
     app.state._volume_override = None
+    app.state._mode_override   = None
+    app.state._cols_override   = None
     global_default_cols      = args.cols if args.cols is not None else (450 if args.pixel else 200)
     app.state.cols           = global_default_cols
     app.state.rows           = args.rows
@@ -967,19 +1005,19 @@ if __name__ == "__main__":
 
     # ── Startup Banner ──
     print(ASCII_LOGO)
-    print(f"\033[1;37m{'\u2550'*55}\033[0m")
-    print(f" \033[32m\u25ba\033[0m \033[1mQueue\033[0m     : {len(queue)} video(s)")
-    print(f" \033[32m\u25ba\033[0m \033[1mLoop\033[0m      : {'ON' if args.loop else 'OFF'}")
+    print(f"\033[1;37m{'═'*55}\033[0m")
+    print(f" \033[32m►\033[0m \033[1mQueue\033[0m     : {len(queue)} video(s)")
+    print(f" \033[32m►\033[0m \033[1mLoop\033[0m      : {'ON' if args.loop else 'OFF'}")
     res_str = f"{global_default_cols}x{args.rows}" if args.rows > 0 else f"{global_default_cols}x(auto)"
-    print(f" \033[32m\u25ba\033[0m \033[1mResolution\033[0m: {res_str}")
-    print(f" \033[32m\u25ba\033[0m \033[1mDefault\033[0m   : mode={args.mode} | pixel={'ON' if args.pixel else 'OFF'} | vol={args.vol}")
-    print(f"\033[1;37m{'\u2500'*55}\033[0m")
+    print(f" \033[32m►\033[0m \033[1mResolution\033[0m: {res_str}")
+    print(f" \033[32m►\033[0m \033[1mDefault\033[0m   : mode={args.mode} | pixel={'ON' if args.pixel else 'OFF'} | vol={args.vol}")
+    print(f"\033[1;37m{'─'*55}\033[0m")
     for i, entry in enumerate(queue, 1):
         px = ' \033[35m[PIXEL]\033[0m' if entry.get('pixel') else ''
         print(f"  {i:2}. \033[36m{entry['video'][:70]}\033[0m  (mode={entry['mode']}{px} vol={entry['vol']})")
-    print(f"\033[1;37m{'\u2550'*55}\033[0m\n")
-    print(f" \033[1;32m\U0001f680 Server live \u2192\033[0m \033[4;36mhttp://localhost:{args.port}\033[0m")
-    print(f" \033[1;32m\U0001f4e1 Media API  \u2192\033[0m \033[4;36mhttp://localhost:{args.port}/api/status\033[0m\n")
+    print(f"\033[1;37m{'═'*55}\033[0m\n")
+    print(f" \033[1;32m🚀 Server live →\033[0m \033[4;36mhttp://localhost:{args.port}\033[0m")
+    print(f" \033[1;32m📡 Media API  →\033[0m \033[4;36mhttp://localhost:{args.port}/api/status\033[0m\n")
 
     threading.Thread(target=command_loop, daemon=True).start()
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
