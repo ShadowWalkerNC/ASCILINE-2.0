@@ -93,7 +93,7 @@ body {
     font-weight: 300;
 }
 
-/* ── VIDEO WRAPPER ────────────────── */
+/* ── VIDEO WRAPPER ───────────────── */
 .video-wrapper {
     display: flex;
     flex-direction: column;
@@ -110,14 +110,14 @@ body {
     letter-spacing: 2px;
 }
 
-/* ── PLAYER CONTAINER ──────────────── */
+/* ── PLAYER CONTAINER ────────────── */
 #player-container {
     position: relative;
     background: var(--player-bg);
     border-radius: 4px;
     width: 100%;
     max-width: 860px;
-    aspect-ratio: 860 / 560;   /* scales with width, keeps shape */
+    aspect-ratio: 860 / 560;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -133,7 +133,6 @@ body {
     line-height: 8px;
     font-weight: bold;
     color: transparent;
-    /* Selection text is transparent */
     position: absolute;
     top: 0;
     left: 0;
@@ -153,7 +152,7 @@ body {
     display: none;
 }
 
-/* ── OVERLAYS ───────────────────────── */
+/* ── OVERLAYS ───────────────────── */
 #play-overlay {
     position: absolute;
     top: 0;
@@ -204,7 +203,7 @@ body {
     font-weight: 600;
 }
 
-/* ── PLAYER CONTROLS BAR ───────────────── */
+/* ── PLAYER CONTROLS BAR ──────────── */
 .player-controls {
     display: flex;
     align-items: center;
@@ -233,7 +232,6 @@ body {
     flex-shrink: 0;
 }
 
-/* Buttons (play / pause / skip) */
 .ctrl-btn {
     background: #050505;
     color: var(--accent-color);
@@ -252,7 +250,6 @@ body {
 .ctrl-btn:hover { border-color: var(--accent-color); }
 .ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: #333; }
 
-/* Time readouts */
 .ctrl-time {
     font-family: var(--font-tech);
     font-size: 11px;
@@ -263,7 +260,7 @@ body {
     text-align: center;
 }
 
-/* Seek bar (track + played fill + transparent slider on top) */
+/* Seek bar */
 .seek-wrap {
     position: relative;
     flex: 1;
@@ -321,7 +318,6 @@ body {
     cursor: pointer;
 }
 
-/* Hover scrub-preview thumbnail */
 .seek-preview {
     position: absolute;
     bottom: 20px;
@@ -381,7 +377,7 @@ body {
     cursor: pointer;
 }
 
-/* ── PAUSE EFFECT ──────────────────────── */
+/* ── PAUSE EFFECT ─────────────────── */
 @keyframes pause-tremble {
     0%, 100% { transform: translate(0, 0); }
     15%  { transform: translate(0px, 1px); }
@@ -403,7 +399,7 @@ body {
     pointer-events: none;
 }
 
-/* ── RESPONSIVE ─────────────────────────── */
+/* ── RESPONSIVE ──────────────────── */
 @media (max-width: 920px) {
     .blog-container { margin: 30px auto; }
     .blog-post { padding: 24px; }
@@ -421,6 +417,489 @@ body {
     .player-controls { gap: 8px; padding: 8px; }
     .ctrl-btn { min-width: 30px; height: 26px; padding: 0 6px; font-size: 11px; }
     .ctrl-time { min-width: 0; font-size: 10px; }
-    .seek-wrap { order: 5; flex-basis: 100%; }   /* seek bar gets its own row */
+    .seek-wrap { order: 5; flex-basis: 100%; }
     #volume-slider { width: 64px; }
+}
+
+
+/* =================================================================
+   PHASE 2A — GUI CONTROLS
+   1. Player layout
+   2. Settings panel
+   3. Mode buttons
+   4. Profile buttons
+   5. Cols slider
+   6. Loop toggle
+   7. Keyboard grid
+   8. Queue sidebar
+   9. Status bar
+   10. Active states
+   11. Fullscreen
+   12. Responsive
+================================================================= */
+
+/* ── 1. Player Layout ────────────────────── */
+.player-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    max-width: 1060px;
+}
+
+.player-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.player-main #player-container { max-width: 100%; }
+.player-main .player-controls,
+.player-main .status-bar { max-width: 100%; }
+
+/* ── 2. Settings Panel ─────────────────── */
+#settings-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 240px;
+    background: rgba(10, 10, 14, 0.97);
+    border-left: 1px solid #2a2a2a;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    transform: translateX(100%);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+#settings-panel.open {
+    transform: translateX(0);
+}
+
+.sp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid #222;
+    flex-shrink: 0;
+}
+
+.sp-title {
+    font-family: var(--font-tech);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent-color);
+}
+
+.sp-close {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.sp-close:hover { color: #ccc; }
+
+.sp-section {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+.sp-label {
+    font-family: var(--font-tech);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #666;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sp-val {
+    color: var(--accent-color);
+    font-family: var(--font-tech);
+    font-size: 10px;
+}
+
+.sp-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* ── 3. Mode Buttons ───────────────────── */
+.mode-btn {
+    background: #111;
+    border: 1px solid #333;
+    color: #888;
+    font-family: var(--font-tech);
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.mode-btn:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+.mode-btn.active {
+    background: rgba(0, 243, 255, 0.1);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+/* ── 4. Profile Buttons ────────────────── */
+.profile-btn {
+    background: #111;
+    border: 1px solid #333;
+    color: #888;
+    font-family: var(--font-tech);
+    font-size: 9px;
+    padding: 4px 7px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: lowercase;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.profile-btn:hover {
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+}
+.profile-btn.active {
+    background: rgba(57, 255, 20, 0.1);
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+}
+
+/* ── 5. Cols Slider ───────────────────── */
+.sp-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+.sp-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+.sp-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+
+/* ── 6. Loop Toggle ──────────────────── */
+.sp-toggle-row { align-items: center; gap: 10px; }
+
+.sp-toggle {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.sp-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.sp-toggle-track {
+    position: absolute;
+    inset: 0;
+    background: #333;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.sp-toggle-track::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 14px;
+    height: 14px;
+    background: #888;
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.sp-toggle input:checked + .sp-toggle-track {
+    background: rgba(0, 243, 255, 0.25);
+}
+.sp-toggle input:checked + .sp-toggle-track::after {
+    transform: translateX(16px);
+    background: var(--accent-color);
+}
+
+/* ── 7. Keyboard Grid ─────────────────── */
+.sp-kbd-section { padding-bottom: 16px; }
+
+.sp-kbd-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 5px 10px;
+    align-items: center;
+}
+
+kbd {
+    display: inline-block;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    font-family: var(--font-tech);
+    font-size: 9px;
+    color: #aaa;
+    padding: 2px 5px;
+    white-space: nowrap;
+    justify-self: start;
+}
+
+.sp-kbd-grid span {
+    font-size: 10px;
+    color: #666;
+}
+
+/* ── 8. Queue Sidebar ─────────────────── */
+.queue-sidebar {
+    width: 190px;
+    flex-shrink: 0;
+    background: #0e0e12;
+    border: 1px solid #222;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    align-self: stretch;
+    max-height: 580px;
+}
+
+.qs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px 8px;
+    border-bottom: 1px solid #1e1e1e;
+    flex-shrink: 0;
+}
+
+.qs-title {
+    font-family: var(--font-tech);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent-color);
+}
+
+.qs-count {
+    font-family: var(--font-tech);
+    font-size: 9px;
+    color: #444;
+}
+
+.queue-list {
+    list-style: none;
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 0;
+}
+
+.queue-list::-webkit-scrollbar { width: 4px; }
+.queue-list::-webkit-scrollbar-track { background: transparent; }
+.queue-list::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+
+.queue-list li {
+    padding: 7px 10px;
+    border-bottom: 1px solid #161616;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: background 0.12s;
+}
+.queue-list li:hover { background: #141418; }
+.queue-list li.active {
+    background: rgba(0, 243, 255, 0.05);
+    border-left: 2px solid var(--accent-color);
+    padding-left: 8px;
+}
+
+.ql-empty {
+    padding: 16px 12px;
+    font-size: 11px;
+    color: #444;
+    font-family: var(--font-tech);
+    cursor: default !important;
+}
+
+.ql-title {
+    font-size: 11px;
+    color: #ccc;
+    font-family: var(--font-tech);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.ql-meta {
+    font-size: 9px;
+    color: #555;
+    font-family: var(--font-tech);
+}
+
+.ql-skip {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #444;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 4px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+.queue-list li:hover .ql-skip { opacity: 1; }
+.ql-skip:hover { color: var(--accent-color); }
+
+/* ── 9. Status Bar ───────────────────── */
+.status-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 5px 12px;
+    background: #0d0d0d;
+    border: 1px solid #1e1e1e;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    font-family: var(--font-tech);
+    font-size: 9px;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.sb-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.sb-item--right { margin-left: auto; }
+
+.sb-val { color: #888; }
+
+.sb-pill {
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: color 0.3s, border-color 0.3s, background 0.3s;
+}
+.sb-pill--connecting {
+    color: #555;
+    border-color: #333;
+    background: transparent;
+}
+.sb-pill--live {
+    color: var(--accent-secondary);
+    border-color: rgba(57, 255, 20, 0.3);
+    background: rgba(57, 255, 20, 0.06);
+}
+.sb-pill--error {
+    color: #ff4444;
+    border-color: rgba(255, 68, 68, 0.3);
+    background: rgba(255, 68, 68, 0.06);
+}
+
+/* ── 10. Active btn-settings ───────────── */
+#btn-settings.active {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background: rgba(0, 243, 255, 0.08);
+}
+
+/* ── 11. Fullscreen ──────────────────── */
+#player-container:fullscreen,
+#player-container:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    border-radius: 0;
+    aspect-ratio: auto;
+}
+
+/* ── 12. Responsive ──────────────────── */
+@media (max-width: 860px) {
+    .player-layout { flex-direction: column; }
+    .queue-sidebar {
+        width: 100%;
+        max-height: 160px;
+        flex-direction: row;
+        align-items: stretch;
+    }
+    .queue-list {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    .queue-list li {
+        min-width: 130px;
+        border-bottom: none;
+        border-right: 1px solid #161616;
+    }
+}
+
+@media (max-width: 560px) {
+    #settings-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #2a2a2a;
+        top: auto;
+        bottom: 0;
+        height: 65%;
+        transform: translateY(100%);
+        transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #settings-panel.open {
+        transform: translateY(0);
+    }
 }

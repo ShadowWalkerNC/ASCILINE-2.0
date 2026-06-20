@@ -5,16 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASCILINE - Dynamic Typography Engine</title>
-
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-
-    <!-- Core Styles -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
-    <!-- Header Section -->
+    <!-- Header -->
     <header class="blog-header">
         <h1>ASCILINE</h1>
         <p>Turning the web into a living, breathing typographic canvas.</p>
@@ -27,9 +23,9 @@
             <div class="post-meta">Manifesto // May 4, 2026 // ASCILINE Core Team</div>
 
             <p class="post-content">
-                Every character on this page is potential energy. The web was built on text — HTML, 
-                the very skeleton of every site you visit, is nothing but structured characters. Yet 
-                somewhere along the way, we forgot that text itself can be the medium, not just the 
+                Every character on this page is potential energy. The web was built on text — HTML,
+                the very skeleton of every site you visit, is nothing but structured characters. Yet
+                somewhere along the way, we forgot that text itself can be the medium, not just the
                 message. ASCILINE exists to remind us: every glyph is a pixel waiting to move.
             </p>
 
@@ -37,58 +33,178 @@
             <div class="video-wrapper">
                 <div id="status" class="status">System Ready</div>
 
-                <!-- Main Player Container -->
-                <div id="player-container">
-                    <!-- Text-based rendering (B&W Mode) -->
-                    <pre id="ascii-player"></pre>
+                <!-- PHASE 2A LAYOUT -->
+                <div class="player-layout">
 
-                    <!-- Canvas-based rendering (Color Modes) -->
-                    <canvas id="ascii-canvas"></canvas>
+                    <!-- Left: player + controls -->
+                    <div class="player-main">
 
-                    <!-- Interaction Overlay -->
-                    <div id="play-overlay">
-                        <div class="play-btn"></div>
-                        <span class="play-label">Initialize Uplink</span>
-                    </div>
-                </div>
+                        <!-- Main Player Container -->
+                        <div id="player-container">
+                            <pre id="ascii-player"></pre>
+                            <canvas id="ascii-canvas"></canvas>
 
-                <!-- Player Controls Bar -->
-                <div class="player-controls">
-                    <button id="play-pause-btn" class="ctrl-btn" title="Play / Pause (Space)">❚❚</button>
-                    <button id="btn-back" class="ctrl-btn" title="Back 10s">«10</button>
-                    <span id="time-current" class="ctrl-time">00:00</span>
-                    <div class="seek-wrap">
-                        <div class="seek-track"></div>
-                        <div class="seek-played" id="seek-played"></div>
-                        <input id="seek-slider" class="seek-slider" type="range" min="0" max="100" step="0.1" value="0" title="Seek">
-                        <div class="seek-preview" id="seek-preview">
-                            <div class="seek-preview-img" id="seek-preview-img"></div>
-                            <div class="seek-preview-time" id="seek-preview-time">0:00</div>
+                            <!-- Play Overlay -->
+                            <div id="play-overlay">
+                                <div class="play-btn"></div>
+                                <span class="play-label">Initialize Uplink</span>
+                            </div>
+
+                            <!-- Settings Panel -->
+                            <div id="settings-panel" aria-hidden="true">
+                                <div class="sp-header">
+                                    <span class="sp-title">Settings</span>
+                                    <button id="settings-close" class="sp-close" title="Close">✕</button>
+                                </div>
+
+                                <!-- Render Mode -->
+                                <div class="sp-section">
+                                    <div class="sp-label">Render Mode</div>
+                                    <div class="sp-row sp-mode-row">
+                                        <button class="mode-btn" data-mode="1" title="B&W text">B&W</button>
+                                        <button class="mode-btn" data-mode="2" title="512 colors">512c</button>
+                                        <button class="mode-btn active" data-mode="3" title="32K colors">32K</button>
+                                        <button class="mode-btn" data-mode="4" title="262K colors">262K</button>
+                                        <button class="mode-btn" data-mode="5" title="16M colors">16M</button>
+                                    </div>
+                                </div>
+
+                                <!-- Columns -->
+                                <div class="sp-section">
+                                    <div class="sp-label">
+                                        Columns
+                                        <span class="sp-val" id="cols-value">200</span>
+                                    </div>
+                                    <input id="cols-slider" class="sp-slider" type="range"
+                                           min="40" max="600" step="10" value="200">
+                                </div>
+
+                                <!-- Profiles -->
+                                <div class="sp-section">
+                                    <div class="sp-label">Profile</div>
+                                    <div class="sp-row sp-profile-row">
+                                        <button class="profile-btn" data-profile="terminal">terminal</button>
+                                        <button class="profile-btn" data-profile="web">web</button>
+                                        <button class="profile-btn" data-profile="cinematic">cinematic</button>
+                                        <button class="profile-btn" data-profile="bandwidth">bandwidth</button>
+                                        <button class="profile-btn" data-profile="ai">ai</button>
+                                    </div>
+                                </div>
+
+                                <!-- Loop -->
+                                <div class="sp-section">
+                                    <div class="sp-label">Loop Queue</div>
+                                    <div class="sp-row sp-toggle-row">
+                                        <label class="sp-toggle">
+                                            <input id="loop-toggle" type="checkbox">
+                                            <span class="sp-toggle-track"></span>
+                                        </label>
+                                        <span id="loop-label" class="sp-val">Off</span>
+                                    </div>
+                                </div>
+
+                                <!-- Keyboard reference -->
+                                <div class="sp-section sp-kbd-section">
+                                    <div class="sp-label">Keyboard</div>
+                                    <div class="sp-kbd-grid">
+                                        <kbd>Space</kbd><span>Play / Pause</span>
+                                        <kbd>←</kbd><span>Back 10s</span>
+                                        <kbd>→</kbd><span>Forward 10s</span>
+                                        <kbd>N</kbd><span>Next video</span>
+                                        <kbd>M</kbd><span>Cycle mode</span>
+                                        <kbd>S</kbd><span>Settings</span>
+                                        <kbd>F</kbd><span>Fullscreen</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- /settings-panel -->
                         </div>
-                    </div>
-                    <span id="time-total" class="ctrl-time">00:00</span>
-                    <button id="btn-fwd" class="ctrl-btn" title="Forward 10s">10»</button>
-                    <div class="ctrl-group">
-                        <span class="ctrl-icon">VOL_</span>
-                        <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="1">
-                    </div>
-                </div>
+                        <!-- /player-container -->
 
-                <!-- Hidden Audio Element -->
+                        <!-- Player Controls Bar -->
+                        <div class="player-controls">
+                            <button id="play-pause-btn" class="ctrl-btn" title="Play / Pause (Space)">❚❚</button>
+                            <button id="btn-back"       class="ctrl-btn" title="Back 10s (←)">\u00ab10</button>
+                            <span   id="time-current"   class="ctrl-time">00:00</span>
+
+                            <div class="seek-wrap">
+                                <div class="seek-track"></div>
+                                <div class="seek-played" id="seek-played"></div>
+                                <input id="seek-slider" class="seek-slider" type="range"
+                                       min="0" max="100" step="0.1" value="0" title="Seek">
+                                <div class="seek-preview" id="seek-preview">
+                                    <div class="seek-preview-img" id="seek-preview-img"></div>
+                                    <div class="seek-preview-time" id="seek-preview-time">0:00</div>
+                                </div>
+                            </div>
+
+                            <span id="time-total" class="ctrl-time">00:00</span>
+                            <button id="btn-fwd" class="ctrl-btn" title="Forward 10s (→)">10\u00bb</button>
+
+                            <div class="ctrl-group">
+                                <span class="ctrl-icon">VOL_</span>
+                                <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="1">
+                            </div>
+
+                            <button id="btn-next"       class="ctrl-btn" title="Next video (N)">⏭</button>
+                            <button id="btn-settings"   class="ctrl-btn" title="Settings (S)">⚙</button>
+                            <button id="btn-fullscreen" class="ctrl-btn" title="Fullscreen (F)">⛶</button>
+                        </div>
+                        <!-- /player-controls -->
+
+                        <!-- Status Bar -->
+                        <div class="status-bar">
+                            <span id="sb-connection" class="sb-pill sb-pill--connecting">⬤ Connecting</span>
+                            <span class="sb-item">
+                                Mode <span id="sb-mode-val" class="sb-val">—</span>
+                            </span>
+                            <span class="sb-item">
+                                Codec <span id="sb-codec-val" class="sb-val">—</span>
+                            </span>
+                            <span class="sb-item">
+                                FPS <span id="sb-fps-val" class="sb-val">—</span>
+                            </span>
+                            <span class="sb-item" id="sb-profile" style="display:none">
+                                Profile <span id="sb-profile-val" class="sb-val">—</span>
+                            </span>
+                            <span class="sb-item sb-item--right">
+                                <span id="sb-bw-val" class="sb-val">— KB/s</span>
+                            </span>
+                        </div>
+                        <!-- /status-bar -->
+
+                    </div>
+                    <!-- /player-main -->
+
+                    <!-- Right: Queue Sidebar -->
+                    <aside class="queue-sidebar">
+                        <div class="qs-header">
+                            <span class="qs-title">Queue</span>
+                            <span id="qs-count" class="qs-count">0 videos</span>
+                        </div>
+                        <ul id="queue-list" class="queue-list">
+                            <li class="ql-empty">No videos in queue</li>
+                        </ul>
+                    </aside>
+                    <!-- /queue-sidebar -->
+
+                </div>
+                <!-- /player-layout -->
+
                 <audio id="ascii-audio" preload="none"></audio>
             </div>
+            <!-- /video-wrapper -->
 
             <p class="post-content">
-                This is not a video player in the traditional sense. There is no &lt;video&gt; tag here, 
-                no compressed binary stream decoded by your GPU. Instead, a WebSocket pushes raw 
-                character data at 24+ frames per second, and your browser renders it as pure text — 
-                the same primitive that built the entire internet. The web becomes dynamic not through 
+                This is not a video player in the traditional sense. There is no &lt;video&gt; tag here,
+                no compressed binary stream decoded by your GPU. Instead, a WebSocket pushes raw
+                character data at 24+ frames per second, and your browser renders it as pure text &mdash;
+                the same primitive that built the entire internet. The web becomes dynamic not through
                 heavier payloads, but by rethinking what was already there.
             </p>
         </article>
     </main>
 
-    <!-- Core Engine Logic -->
     <script src="/static/codec.js"></script>
     <script src="/static/app.js"></script>
 </body>
