@@ -1,0 +1,14 @@
+[build]
+  builder = "dockerfile"
+  dockerfilePath = "Dockerfile"
+
+[deploy]
+  restartPolicyType = "always"
+  restartPolicyMaxRetries = 5
+
+[[services]]
+  [services.healthcheck]
+    path = "/api/status"
+    intervalSeconds = 30
+    timeoutSeconds = 10
+    retries = 3
