@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: asciline
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: START_URL
+        value: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+      - key: PORT
+        value: 8000
+    healthCheckPath: /api/status
+    autoDeploy: true
