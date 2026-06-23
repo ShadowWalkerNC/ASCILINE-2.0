@@ -10,6 +10,12 @@ Supports three source modes (in priority order):
 
 URL resolution (yt-dlp) lives here so both CLI and API enqueue share
 the exact same resolution logic.
+
+Direct mp4/webm/etc. URLs:
+  cv2.VideoCapture can open http(s) URLs directly via FFmpeg's
+  network stack -- no yt-dlp needed. We pass them straight through.
+  If cv2 can't open the URL (firewall / auth), we fall back to a
+  one-time download into /tmp.
 """
 
 import os
@@ -17,6 +23,19 @@ import json
 from urllib.parse import urlparse
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Extensions cv2+FFmpeg can stream directly over HTTP
+DIRECT_EXTS = (".mp4", ".webm", ".mkv", ".avi", ".mov", ".m3u8", ".ts")
+
+# Platform URL patterns that require yt-dlp
+PLATFORM_HINTS = (
+    "youtube.com", "youtu.be",
+    "twitch.tv", "vimeo.com",
+    "dailymotion.com", "tiktok.com",
+    "instagram.com", "twitter.com", "x.com",
+    "reddit.com", "streamable.com",
+)
+
 
 # ─── URL / path resolution ────────────────────────────────────────────────────
 
@@ -38,19 +57,67 @@ def resolve_video_path(video: str) -> str:
     return video  # let playback surface the error
 
 
+def _is_platform_url(url: str) -> bool:
+    """Return True if the URL is a known platform that needs yt-dlp."""
+    try:
+        host = urlparse(url).hostname or ""
+    except ValueError:
+        return False
+    return any(hint in host for hint in PLATFORM_HINTS)
+
+
+def _is_direct_media_url(url: str) -> bool:
+    """Return True if the URL points directly to a media file cv2 can stream."""
+    parsed_path = urlparse(url).path.lower()
+    return any(parsed_path.endswith(ext) for ext in DIRECT_EXTS)
+
+
+def _try_download_to_tmp(url: str) -> str:
+    """
+    Last-resort: download the URL to /tmp and return the local path.
+    Used when cv2 can't stream the URL directly.
+    """
+    import urllib.request
+    import tempfile
+    ext = os.path.splitext(urlparse(url).path)[-1] or ".mp4"
+    tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False, dir="/tmp")
+    tmp.close()
+    print(f"[download] Fetching {url[:70]}...")
+    try:
+        urllib.request.urlretrieve(url, tmp.name)
+        print(f"[download] Saved to {tmp.name}")
+        return tmp.name
+    except Exception as e:
+        print(f"[download] Failed: {e}")
+        return url  # return original, let playback surface the error
+
+
 def resolve_video_source(video: str) -> str:
     """
     Resolve any video source to something cv2.VideoCapture can open:
-      - Direct media URLs (.mp4/.webm/etc.) → returned as-is
-      - Platform URLs (YouTube, Twitch …)   → resolved via yt-dlp
-      - Local paths                          → resolve_video_path()
+
+      1. Direct media URL (.mp4/.webm/etc.):
+         - Returned as-is; cv2+FFmpeg streams it over HTTP natively.
+         - If cv2 fails to open it later, _try_download_to_tmp() is
+           called as a fallback (handled in VideoDecoder).
+
+      2. Platform URL (YouTube, Twitch, Vimeo …):
+         - Resolved via yt-dlp to a CDN stream URL.
+         - If yt-dlp fails (bot detection, no auth), logs the error
+           and returns the original URL so the error surfaces cleanly.
+
+      3. Local path:
+         - Searched in CWD, project root, and videos/ subfolder.
     """
     stripped = video.strip()
+
     if stripped.startswith(("http://", "https://")):
-        DIRECT_EXTS = (".mp4", ".webm", ".mkv", ".avi", ".mov", ".m3u8")
-        parsed_path = urlparse(stripped).path.lower()
-        if any(parsed_path.endswith(ext) for ext in DIRECT_EXTS):
+        # ── Case 1: direct media URL ──
+        if _is_direct_media_url(stripped) and not _is_platform_url(stripped):
+            print(f"[stream] Direct URL: {stripped[:80]}")
             return stripped
+
+        # ── Case 2: platform URL → yt-dlp ──
         try:
             import yt_dlp
             ydl_opts = {
@@ -64,13 +131,19 @@ def resolve_video_source(video: str) -> str:
                     info = info["entries"][0]
                 url = info.get("url") or info.get("manifest_url")
                 if url:
-                    print(f"[yt-dlp] Resolved: {stripped[:60]}... → CDN stream")
+                    print(f"[yt-dlp] Resolved: {stripped[:60]}")
                     return url
         except ImportError:
             print("[yt-dlp] Not installed. pip install yt-dlp")
         except Exception as e:
             print(f"[yt-dlp] Resolution failed: {e}")
-        return stripped
+            # ── Fallback: if it looks like a direct file, try downloading ──
+            if _is_direct_media_url(stripped):
+                return _try_download_to_tmp(stripped)
+
+        return stripped  # return as-is, let VideoDecoder surface the error
+
+    # ── Case 3: local path ──
     return resolve_video_path(stripped)
 
 

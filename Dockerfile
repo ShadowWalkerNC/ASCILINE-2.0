@@ -1,6 +1,7 @@
 # ─────────────────────────────────────────────
-# ASCILINE — Railway Dockerfile
+# ASCILINE — Render / Railway Dockerfile
 # Includes FFmpeg, Python 3.11, all pip deps.
+# Supports direct .mp4 URLs via cv2+FFmpeg network stack.
 # ─────────────────────────────────────────────
 
 FROM python:3.11-slim
@@ -21,10 +22,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy full project
 COPY . .
 
-# Railway injects PORT env var — fallback to 8000
+# Railway/Render inject PORT automatically
 ENV PORT=8000
 EXPOSE $PORT
 
-# Override START_URL in Railway env vars with your YouTube URL.
-# Leave blank to use the default demo video.
-CMD ["sh", "-c", "python stream_server.py ${START_URL:-https://www.youtube.com/watch?v=dQw4w9WgXcQ} --mode 3 --cols 200 --vol 1 --loop --host 0.0.0.0 --port ${PORT}"]
+# START_URL must be a direct .mp4 URL (or any URL cv2+FFmpeg can stream).
+# YouTube URLs will NOT work on cloud IPs without cookies.
+# Use a direct mp4 link from Cloudinary, Bunny CDN, S3, GitHub Releases, etc.
+#
+# Example:
+#   START_URL=https://your-cdn.com/video.mp4
+#
+# The default below is a public domain test clip (Big Buck Bunny, 60s).
+CMD ["sh", "-c", "python stream_server.py ${START_URL:-https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4} --mode 3 --cols 200 --vol 1 --loop --host 0.0.0.0 --port ${PORT}"]
