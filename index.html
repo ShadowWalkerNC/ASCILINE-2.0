@@ -7,6 +7,78 @@
     <title>ASCILINE - Dynamic Typography Engine</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* ── Upload / Paste Panel ── */
+        .enqueue-panel {
+            margin-top: 10px;
+            border-top: 1px solid #1e2a2a;
+            padding-top: 10px;
+        }
+        .enqueue-panel input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            background: #0a1010;
+            border: 1px solid #1e3030;
+            color: #7fffd4;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 6px 8px;
+            border-radius: 3px;
+            outline: none;
+            margin-bottom: 6px;
+        }
+        .enqueue-panel input[type="text"]:focus {
+            border-color: #00ffcc;
+        }
+        .enqueue-panel input[type="text"]::placeholder {
+            color: #2a4040;
+        }
+        .enqueue-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .enqueue-btn {
+            flex: 1;
+            background: #0a2020;
+            border: 1px solid #1e4040;
+            color: #7fffd4;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            padding: 5px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+            text-align: center;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .enqueue-btn:hover {
+            background: #0d2f2f;
+            border-color: #00ffcc;
+        }
+        .enqueue-btn:active {
+            background: #003333;
+        }
+        .enqueue-btn.upload-btn {
+            position: relative;
+            overflow: hidden;
+        }
+        .enqueue-btn.upload-btn input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            font-size: 0;
+        }
+        .enqueue-msg {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #2a8060;
+            min-height: 14px;
+            margin-top: 5px;
+            text-align: center;
+        }
+        .enqueue-msg.err { color: #ff4444; }
+    </style>
 </head>
 
 <body>
@@ -124,7 +196,7 @@
                         <!-- Player Controls Bar -->
                         <div class="player-controls">
                             <button id="play-pause-btn" class="ctrl-btn" title="Play / Pause (Space)">❚❚</button>
-                            <button id="btn-back"       class="ctrl-btn" title="Back 10s (←)">\u00ab10</button>
+                            <button id="btn-back"       class="ctrl-btn" title="Back 10s (←)">«10</button>
                             <span   id="time-current"   class="ctrl-time">00:00</span>
 
                             <div class="seek-wrap">
@@ -139,7 +211,7 @@
                             </div>
 
                             <span id="time-total" class="ctrl-time">00:00</span>
-                            <button id="btn-fwd" class="ctrl-btn" title="Forward 10s (→)">10\u00bb</button>
+                            <button id="btn-fwd" class="ctrl-btn" title="Forward 10s (→)">10»</button>
 
                             <div class="ctrl-group">
                                 <span class="ctrl-icon">VOL_</span>
@@ -154,7 +226,7 @@
 
                         <!-- Status Bar -->
                         <div class="status-bar">
-                            <span id="sb-connection" class="sb-pill sb-pill--connecting">⬤ Connecting</span>
+                            <span id="sb-connection" class="sb-pill sb-pill--connecting">● Connecting</span>
                             <span class="sb-item">
                                 Mode <span id="sb-mode-val" class="sb-val">—</span>
                             </span>
@@ -185,6 +257,24 @@
                         <ul id="queue-list" class="queue-list">
                             <li class="ql-empty">No videos in queue</li>
                         </ul>
+
+                        <!-- ── Enqueue Panel ── -->
+                        <div class="enqueue-panel">
+                            <input type="text" id="enqueue-url"
+                                   placeholder="Paste direct .mp4 / .webm URL"
+                                   autocomplete="off" spellcheck="false">
+                            <div class="enqueue-row">
+                                <button class="enqueue-btn" id="enqueue-url-btn">+ Add URL</button>
+                                <label class="enqueue-btn upload-btn" title="Upload a local video file">
+                                    ↑ Upload
+                                    <input type="file" id="enqueue-file"
+                                           accept="video/mp4,video/webm,video/x-matroska,video/avi,video/quicktime,.mp4,.webm,.mkv,.avi,.mov">
+                                </label>
+                            </div>
+                            <div class="enqueue-msg" id="enqueue-msg"></div>
+                        </div>
+                        <!-- /enqueue-panel -->
+
                     </aside>
                     <!-- /queue-sidebar -->
 
@@ -207,6 +297,71 @@
 
     <script src="/static/codec.js"></script>
     <script src="/static/app.js"></script>
+    <script>
+    /* ── Enqueue Panel Logic ── */
+    (function () {
+        const urlInput  = document.getElementById('enqueue-url');
+        const urlBtn    = document.getElementById('enqueue-url-btn');
+        const fileInput = document.getElementById('enqueue-file');
+        const msg       = document.getElementById('enqueue-msg');
+
+        function showMsg(text, isErr) {
+            msg.textContent = text;
+            msg.className = 'enqueue-msg' + (isErr ? ' err' : '');
+            setTimeout(() => { msg.textContent = ''; msg.className = 'enqueue-msg'; }, 4000);
+        }
+
+        /* -- URL enqueue -- */
+        async function enqueueUrl(url) {
+            if (!url) return;
+            urlBtn.disabled = true;
+            showMsg('Adding...');
+            try {
+                const r = await fetch('/api/enqueue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const d = await r.json();
+                if (d.ok) {
+                    showMsg('\u2714 Added to queue #' + d.position);
+                    urlInput.value = '';
+                } else {
+                    showMsg('Error: ' + (d.error || 'unknown'), true);
+                }
+            } catch (e) {
+                showMsg('Network error', true);
+            } finally {
+                urlBtn.disabled = false;
+            }
+        }
+
+        urlBtn.addEventListener('click', () => enqueueUrl(urlInput.value.trim()));
+        urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') enqueueUrl(urlInput.value.trim()); });
+
+        /* -- File upload -- */
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            showMsg('Uploading ' + file.name + '...');
+            const fd = new FormData();
+            fd.append('file', file);
+            try {
+                const r = await fetch('/api/upload', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) {
+                    showMsg('\u2714 Uploaded & queued #' + d.position);
+                } else {
+                    showMsg('Upload failed: ' + (d.error || 'unknown'), true);
+                }
+            } catch (e) {
+                showMsg('Upload error', true);
+            } finally {
+                fileInput.value = '';
+            }
+        });
+    })();
+    </script>
 </body>
 
 </html>
