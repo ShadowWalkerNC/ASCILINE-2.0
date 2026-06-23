@@ -16,6 +16,7 @@ Start the server:
 
 import asyncio
 import struct
+import sys
 import time
 import threading
 import os
@@ -39,6 +40,9 @@ from cli.args import build_arg_parser, command_loop, print_status, ASCII_LOGO
 from cli.profiles import apply_profile
 
 os.system("")  # Enable ANSI on Windows
+
+# Detect headless / non-interactive environment (Docker, Render, CI, etc.)
+HEADLESS = not sys.stdin.isatty()
 
 app = FastAPI()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -572,27 +576,30 @@ if __name__ == "__main__":
         print("[ERROR] No videos found.")
         exit(1)
 
-    # ── High FPS warning ──
-    import cv2 as _cv2
-    high_fps = []
-    for entry in queue:
-        vp = entry["video"]
-        if not vp.startswith(("http://", "https://")):
-            cap = _cv2.VideoCapture(vp)
-            if cap.isOpened():
-                fps = cap.get(_cv2.CAP_PROP_FPS)
-                if fps > 35:
-                    high_fps.append((vp, fps))
-            cap.release()
-    if high_fps:
-        print("\n\033[1;33m[WARNING] High FPS Source(s) Detected:\033[0m")
-        for vid, fps in high_fps:
-            print(f"  - \033[36m{vid}\033[0m is \033[1;31m{fps:.1f} FPS\033[0m")
-        print("\033[33mASCILINE will automatically decimate to ~30 FPS.\033[0m\n")
-        while True:
-            choice = input("\033[1mContinue anyway? (y/n): \033[0m").strip().lower()
-            if choice == "y": break
-            elif choice == "n": exit(0)
+    # ── High FPS warning (skipped in headless/cloud environments) ──
+    if not HEADLESS:
+        import cv2 as _cv2
+        high_fps = []
+        for entry in queue:
+            vp = entry["video"]
+            if not vp.startswith(("http://", "https://")):
+                cap = _cv2.VideoCapture(vp)
+                if cap.isOpened():
+                    fps = cap.get(_cv2.CAP_PROP_FPS)
+                    if fps > 35:
+                        high_fps.append((vp, fps))
+                cap.release()
+        if high_fps:
+            print("\n\033[1;33m[WARNING] High FPS Source(s) Detected:\033[0m")
+            for vid, fps in high_fps:
+                print(f"  - \033[36m{vid}\033[0m is \033[1;31m{fps:.1f} FPS\033[0m")
+            print("\033[33mASCILINE will automatically decimate to ~30 FPS.\033[0m\n")
+            while True:
+                choice = input("\033[1mContinue anyway? (y/n): \033[0m").strip().lower()
+                if choice == "y": break
+                elif choice == "n": exit(0)
+    else:
+        print("[headless] Skipping high-FPS interactive check.")
 
     # ── Populate app.state ──
     global_default_cols       = args.cols if args.cols is not None else (450 if args.pixel else 200)
@@ -627,5 +634,6 @@ if __name__ == "__main__":
     print(f" \033[1;32m🚀 Server live →\033[0m \033[4;36mhttp://localhost:{args.port}\033[0m")
     print(f" \033[1;32m📡 Media API  →\033[0m \033[4;36mhttp://localhost:{args.port}/api/status\033[0m\n")
 
-    threading.Thread(target=lambda: command_loop(app.state), daemon=True).start()
+    if not HEADLESS:
+        threading.Thread(target=lambda: command_loop(app.state), daemon=True).start()
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
