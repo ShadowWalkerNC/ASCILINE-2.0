@@ -23,8 +23,8 @@ import os
 from urllib.parse import urlparse
 from websockets.exceptions import ConnectionClosed
 
-# Import the existing engine (ascii_video_player2.py)
-from ascii_video_player2 import VideoDecoder, AsciiMapper
+# Import from canonical core module (ascii_video_player2.py re-exports from here)
+from core.decoder import VideoDecoder, AsciiMapper
 from codec import encode_frame
 import ytdl
 
@@ -524,8 +524,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     pass
 
             receive_task = asyncio.create_task(receive_commands())
-
-            raw_frame_num = 0
 
             def produce(pf, fi):
                 """Decode, process, encode one frame. Returns None on EOF."""
