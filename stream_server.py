@@ -2,16 +2,6 @@
 stream_server.py
 ================
 ASCILINE web server entry point.
-
-This file is intentionally thin — all logic lives in the modules below:
-  core/   — VideoDecoder, AsciiMapper, queue_manager, scrub
-  api/    — FastAPI routes and Pydantic models
-  cli/    — argparse, profiles, banner, command loop
-
-Start the server:
-  python stream_server.py video.mp4 --profile web
-  python stream_server.py --folder videos --profile cinematic
-  python stream_server.py --playlist playlist.json --loop
 """
 
 import asyncio
@@ -24,24 +14,21 @@ import os
 import numpy as np
 import cv2
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, Response
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, Response, FileResponse
 from websockets.exceptions import ConnectionClosed
 from urllib.parse import urlparse
 
-# ── Modular imports ───────────────────────────────────────────────────
 from core.decoder import VideoDecoder, AsciiMapper
 from core.queue_manager import build_queue, resolve_video_source
 from core.scrub import build_scrub_sprite
 from codec import encode_frame
 from api.models import EnqueueBody, SeekBody, VolumeBody, LoopBody
+from api.upload import handle_upload
 from cli.args import build_arg_parser, command_loop, print_status, ASCII_LOGO
 from cli.profiles import apply_profile
 
-os.system("")  # Enable ANSI on Windows
-
-# Detect headless / non-interactive environment (Docker, Render, CI, etc.)
+os.system("")
 HEADLESS = not sys.stdin.isatty()
 
 app = FastAPI()
@@ -139,6 +126,11 @@ async def api_enqueue(body: EnqueueBody):
     return JSONResponse({"ok": True, "position": len(queue), "resolved": resolved, "entry": entry})
 
 
+@app.post("/api/upload")
+async def api_upload(file: UploadFile = File(...)):
+    return await handle_upload(file, app.state)
+
+
 @app.post("/api/skip")
 async def api_skip():
     app.state._skip_requested = True
@@ -207,7 +199,6 @@ async def api_queue():
 
 @app.get("/api/meta")
 async def api_meta():
-    """Stream metadata for external integrations (dashboards, Discord bots, etc.)."""
     queue = getattr(app.state, "queue", [])
     idx   = getattr(app.state, "current_index", 0)
     entry = queue[idx] if queue and 0 <= idx < len(queue) else {}
@@ -332,9 +323,16 @@ async def websocket_endpoint(websocket: WebSocket):
 
     adaptive  = websocket.query_params.get("codec") == "adaptive"
     tolerance = getattr(app.state, "tolerance", 0)
-    queue     = getattr(app.state, "queue", [])
     loop      = getattr(app.state, "loop", False)
 
+    # Wait up to 30s for queue to be populated (handles slow /tmp downloads)
+    for _ in range(300):
+        queue = getattr(app.state, "queue", [])
+        if queue:
+            break
+        await asyncio.sleep(0.1)
+
+    queue = getattr(app.state, "queue", [])
     if not queue:
         await websocket.send_text("Error: No video in queue!")
         await websocket.close()
@@ -356,6 +354,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 if loop and queue:
                     queue_index = 0
                 else:
+                    # Wait for new items to be enqueued
+                    await asyncio.sleep(1.0)
+                    queue = getattr(app.state, "queue", [])
+                    if queue and queue_index < len(queue):
+                        continue
                     break
 
             entry       = queue[queue_index]
@@ -560,7 +563,6 @@ if __name__ == "__main__":
     parser = build_arg_parser()
     args   = parser.parse_args()
 
-    # Apply profile before validation (profile sets defaults, flags override)
     if args.profile:
         apply_profile(args, args.profile)
 
@@ -576,7 +578,6 @@ if __name__ == "__main__":
         print("[ERROR] No videos found.")
         exit(1)
 
-    # ── High FPS warning (skipped in headless/cloud environments) ──
     if not HEADLESS:
         import cv2 as _cv2
         high_fps = []
@@ -601,7 +602,6 @@ if __name__ == "__main__":
     else:
         print("[headless] Skipping high-FPS interactive check.")
 
-    # ── Populate app.state ──
     global_default_cols       = args.cols if args.cols is not None else (450 if args.pixel else 200)
     app.state.queue           = queue
     app.state.current_index   = 0
@@ -616,7 +616,6 @@ if __name__ == "__main__":
     app.state.cols            = global_default_cols
     app.state.rows            = args.rows
 
-    # ── Startup banner ──
     print(ASCII_LOGO)
     print(f"\033[1;37m{'═'*55}\033[0m")
     if args.profile:
