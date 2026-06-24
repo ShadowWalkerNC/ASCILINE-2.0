@@ -5,3 +5,4 @@ opencv-python>=4.9.0
 numpy>=1.26.0
 pydantic>=2.0.0
 yt-dlp>=2024.1.0
+python-multipart>=0.0.9
